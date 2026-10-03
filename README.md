@@ -74,9 +74,56 @@ Validation accuracy rose from 83.7% after the first epoch to 99.95% by the tenth
 
 The trained model is saved as `sign_language_cnn.h5`.
 
-## Possible improvements
+## Real-Time Webcam Demo
 
-- Add dropout or batch normalization to further reduce overfitting.
-- Train at a higher input resolution to better separate similar hand shapes like M and N.
-- Extend to J and Z using video and a temporal model, such as a CNN feeding an LSTM.
-- Add a real-time webcam demo with OpenCV.
+`realtime_demo.py` runs the trained CNN on live webcam video at ~17 FPS on CPU.
+It uses classical CV to find the hand first: MOG2 background subtraction,
+morphological filtering, and contour detection, then crops the hand to 28×28
+and classifies it.
+
+```bash
+   pip install -r requirements.txt
+   python realtime_demo.py
+```
+Keep your hand out of the green box for ~2 seconds while it learns the
+background, then sign inside it. Press `r` to relearn the background, `q` to quit.
+
+**Note:** live accuracy is lower than the 98.7% test accuracy because webcam
+frames differ from Sign MNIST images (domain shift).
+
+## Live Recognition with Hand Landmarks
+
+### Why a second approach?
+The pixel-based CNN scores 98.7% on the Sign MNIST test set, but almost 0% on live webcam video. Debugging showed three causes:
+- **Domain shift:** webcam lighting, camera, and background differ from Sign MNIST images
+- **Forearm in the crop:** Sign MNIST shows only the hand; live crops included the arm
+- **Confident misclassification:** the model was often 99–100% sure and wrong, and biased toward "O"
+
+### The fix
+`landmark_asl.py` replaces pixels with hand geometry:
+1. **MediaPipe Hands** finds 21 hand-joint landmarks in each frame, regardless of background
+2. Landmarks are normalized to the wrist and scaled by hand size, which makes them position- and scale-invariant (42 features)
+3. A **Random Forest** trained on 5,600+ self-collected samples across all 26 letters classifies the handshape
+4. Predictions are smoothed with a majority vote over recent frames
+
+### Results
+- Recognized **all 26 letters** in live webcam testing at **~30 FPS** on CPU
+- Similar handshapes (M/N/S/T, U/V/R) are less stable
+- J and Z involve motion in ASL; a static-landmark model can only approximate them
+- Held-out accuracy on recorded samples is 100%, but this is inflated because consecutive frames are nearly identical. Live testing is the meaningful metric.
+
+### Run it
+Download the MediaPipe hand model into this folder:
+[hand_landmarker.task](https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task)
+
+```bash
+pip install -r requirements.txt
+python landmark_asl.py collect   # record samples: press a letter key to record, SPACE to stop, ESC to save
+python landmark_asl.py train     # train and evaluate the classifier
+python landmark_asl.py run       # live recognition
+```
+
+## Possible improvements
+- Sequence model (LSTM or temporal CNN) over landmark sequences to properly handle J and Z
+- More training data from multiple people and lighting conditions to improve robustness
+- PyTorch port and C++ deployment via ONNX and OpenCV DNN (in progress)

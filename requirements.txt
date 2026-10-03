@@ -1,0 +1,6 @@
+tensorflow
+numpy
+opencv-python<5
+mediapipe
+scikit-learn
+joblib
