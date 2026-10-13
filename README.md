@@ -2,6 +2,25 @@
 
 A convolutional neural network built in TensorFlow/Keras that classifies static American Sign Language (ASL) hand signs from grayscale images. It reaches **98.72% accuracy** on a held-out test set of 7,172 images.
 
+**Highlights**
+- **98.72% test accuracy** with a compact 227K-parameter CNN
+- **Real-time webcam demo** that combines classical computer vision (background subtraction and contours) with the CNN
+- **Failure analysis and a fix:** diagnosed why the pixel model failed on live video (domain shift), then built a second pipeline on MediaPipe hand landmarks that recognizes all 26 letters live at ~30 FPS
+- **Deployment:** int8-quantized TFLite and ONNX exports that are **3.8× smaller** with a 0.18-point accuracy cost, and run **700–1,100× faster per frame** than the original Keras inference
+
+### Repository layout
+
+| Path | What it is |
+|---|---|
+| `sign_language_cnn.ipynb` | Data exploration, training and evaluation of the CNN |
+| `sign_language_cnn.h5` | Trained Keras model |
+| `realtime_demo.py` | Live webcam recognition with the int8 CNN |
+| `landmark_asl.py` | Live recognition from MediaPipe hand landmarks (collect, train, run) |
+| `export_models.py` | Converts the CNN to TFLite and ONNX, in float32 and int8 |
+| `benchmark.py` | Size, accuracy and latency comparison of all model formats |
+| `models/` | The exported TFLite and ONNX models |
+| `images/` | Figures used in this README |
+
 ![Sample images](images/sample_images.png)
 
 ## Results
@@ -68,22 +87,24 @@ Validation accuracy rose from 83.7% after the first epoch to 99.95% by the tenth
 1. Download `sign_mnist_train.csv` and `sign_mnist_test.csv` from the Kaggle link above and place them in a `Sign Language MNIST/` folder.
 2. Install the dependencies:
    ```bash
-   pip install tensorflow numpy pandas scikit-learn matplotlib seaborn
+   pip install -r requirements.txt
    ```
-3. Open the notebook, update the two CSV paths in the loading cell to point at your copy, and run all cells.
+3. Open `sign_language_cnn.ipynb` from the same folder that contains `Sign Language MNIST/`, and run all cells.
 
 The trained model is saved as `sign_language_cnn.h5`.
 
 ## Real-Time Webcam Demo
 
-`realtime_demo.py` runs the CNN on live webcam video on CPU. It uses the int8 TFLite export (`models/sign_language_cnn_int8.tflite`, see [Model Export](#model-export-int8-tflite-and-onnx)), which classifies a frame in ~0.05 ms. The earlier Keras version spent ~60 ms per frame in `model.predict` and ran at ~17 FPS. Inference runs on `ai-edge-litert` if it is installed, and on TensorFlow's bundled interpreter if not.
+`realtime_demo.py` runs the CNN on live webcam video on CPU.
 It uses classical CV to find the hand first: MOG2 background subtraction,
 morphological filtering, and contour detection, then crops the hand to 28×28
 and classifies it.
 
+Classification uses the int8 TFLite export (`models/sign_language_cnn_int8.tflite`, see [Model Export](#model-export-int8-tflite-and-onnx)), which takes ~0.05 ms per frame. The earlier Keras version spent ~60 ms per frame in `model.predict` and ran at ~17 FPS. Inference runs on `ai-edge-litert` if it is installed, and on TensorFlow's bundled interpreter if not.
+
 ```bash
-   pip install -r requirements.txt
-   python realtime_demo.py
+pip install -r requirements.txt
+python realtime_demo.py
 ```
 Keep your hand out of the green box for ~2 seconds while it learns the
 background, then sign inside it. Press `r` to relearn the background, `q` to quit.
@@ -163,4 +184,4 @@ What the numbers show:
 ## Possible improvements
 - Sequence model (LSTM or temporal CNN) over landmark sequences to properly handle J and Z
 - More training data from multiple people and lighting conditions to improve robustness
-- PyTorch port and C++ deployment via ONNX and OpenCV DNN (in progress)
+- PyTorch port, and C++ deployment of the ONNX export via OpenCV DNN (in progress)
