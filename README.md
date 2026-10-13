@@ -76,7 +76,7 @@ The trained model is saved as `sign_language_cnn.h5`.
 
 ## Real-Time Webcam Demo
 
-`realtime_demo.py` runs the trained CNN on live webcam video at ~17 FPS on CPU.
+`realtime_demo.py` runs the CNN on live webcam video on CPU. It uses the int8 TFLite export (`models/sign_language_cnn_int8.tflite`, see [Model Export](#model-export-int8-tflite-and-onnx)), which classifies a frame in ~0.05 ms. The earlier Keras version spent ~60 ms per frame in `model.predict` and ran at ~17 FPS. Inference runs on `ai-edge-litert` if it is installed, and on TensorFlow's bundled interpreter if not.
 It uses classical CV to find the hand first: MOG2 background subtraction,
 morphological filtering, and contour detection, then crops the hand to 28×28
 and classifies it.
@@ -148,7 +148,7 @@ Measured on the full 7,172-image test set. Latency is for one image (batch 1) on
 
 | Model | Size | Test accuracy | Agrees with Keras | Median latency | p95 latency |
 |---|---|---|---|---|---|
-| Keras `.h5`, `model.predict` (as in `realtime_demo.py`) | 2,700 KB | 98.72% | – | 60.6 ms | 76.5 ms |
+| Keras `.h5`, `model.predict` (what `realtime_demo.py` used before) | 2,700 KB | 98.72% | – | 60.6 ms | 76.5 ms |
 | Keras `.h5`, `tf.function` call | 2,700 KB | 98.72% | – | 0.67 ms | 1.07 ms |
 | TFLite fp32 | 891 KB | 98.72% | 100.00% | 0.078 ms | 0.12 ms |
 | **TFLite int8** | **233 KB** | **98.54%** | **99.76%** | **0.055 ms** | **0.11 ms** |
@@ -158,7 +158,7 @@ Measured on the full 7,172-image test set. Latency is for one image (batch 1) on
 What the numbers show:
 - **Size:** int8 cuts the model to about **3.8×** smaller than float32 (891 KB → 233 KB) and **11.6×** smaller than the `.h5`. The `.h5` is bigger than the weights alone because it also stores Adam optimizer state.
 - **Accuracy:** int8 costs **0.18 points** (98.72% → 98.54%). It changes the predicted letter on 17 of 7,172 test images (0.24%). The float32 exports match Keras exactly.
-- **Speed:** most of the speedup comes from leaving Keras, not from int8. `model.predict` spends ~60 ms per call on setup, so any TFLite or ONNX export is **700–1,100× faster per frame** than the current demo. Compared with a direct Keras call, TFLite int8 is ~12× faster. Against float32 TFLite, int8 is ~1.4× faster. ONNX Runtime int8 runs at about the same speed as ONNX fp32: at 227K parameters the per-call overhead outweighs the cheaper int8 math on x86. The int8 ONNX model is still the one to ship for its size, and it should gain more on ARM or VNNI-capable hardware.
+- **Speed:** most of the speedup comes from leaving Keras, not from int8. `model.predict` spends ~60 ms per call on setup, so any TFLite or ONNX export is **700–1,100× faster per frame** than the original demo. `realtime_demo.py` now uses the int8 TFLite model. Compared with a direct Keras call, TFLite int8 is ~12× faster. Against float32 TFLite, int8 is ~1.4× faster. ONNX Runtime int8 runs at about the same speed as ONNX fp32: at 227K parameters the per-call overhead outweighs the cheaper int8 math on x86. The int8 ONNX model is still the one to ship for its size, and it should gain more on ARM or VNNI-capable hardware.
 
 ## Possible improvements
 - Sequence model (LSTM or temporal CNN) over landmark sequences to properly handle J and Z

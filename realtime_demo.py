@@ -7,7 +7,8 @@ Pipeline (classical CV -> deep learning):
   3. Clean the foreground mask with morphological opening/closing.
   4. Find the largest contour (the hand) and take its bounding box.
   5. Crop that box from the grayscale frame, resize to 28x28, normalize.
-  6. Classify with the trained CNN (sign_language_cnn.h5).
+  6. Classify with the int8 TFLite export of the CNN
+     (models/sign_language_cnn_int8.tflite, built by export_models.py).
   7. Smooth predictions over recent frames and display letter, confidence, FPS.
 
 Usage:
@@ -25,10 +26,15 @@ from collections import Counter, deque
 
 import cv2
 import numpy as np
-from tensorflow.keras.models import load_model
+
+try:
+    from ai_edge_litert.interpreter import Interpreter
+except ImportError:                       # fall back to TensorFlow's copy
+    import tensorflow as tf
+    Interpreter = tf.lite.Interpreter
 
 # ---------------- Configuration ----------------
-MODEL_PATH = "sign_language_cnn.h5"
+MODEL_PATH = "models/sign_language_cnn_int8.tflite"
 CAMERA_INDEX = 0
 ROI = (350, 80, 300, 300)        # x, y, width, height of the signing box
 BACKGROUND_FRAMES = 60           # frames used to learn the empty background
@@ -39,6 +45,29 @@ CONFIDENCE_THRESHOLD = 0.6       # below this, show "?" instead of a letter
 # Sign Language MNIST labels: 0=A ... 24=Y. Label 9 (J) and Z need motion and
 # are not in the dataset, so index 9 is never a valid prediction.
 LETTERS = [chr(ord("A") + i) for i in range(25)]
+
+
+class Int8Classifier:
+    """Runs the full-integer TFLite model on float inputs in [0, 1].
+
+    The model takes and returns int8 tensors, so inputs are quantized and
+    output probabilities dequantized with the scales stored in the model.
+    """
+
+    def __init__(self, path):
+        self.interp = Interpreter(model_path=path, num_threads=1)
+        self.interp.allocate_tensors()
+        self.inp = self.interp.get_input_details()[0]
+        self.out = self.interp.get_output_details()[0]
+
+    def predict(self, x):
+        scale, zero = self.inp["quantization"]
+        q = np.clip(np.round(x / scale + zero), -128, 127).astype(np.int8)
+        self.interp.set_tensor(self.inp["index"], q)
+        self.interp.invoke()
+        scale, zero = self.out["quantization"]
+        y = self.interp.get_tensor(self.out["index"])
+        return (y.astype(np.float32) - zero) * scale
 
 
 def create_subtractor():
@@ -79,7 +108,7 @@ def preprocess(gray_roi, box):
 
 
 def main():
-    model = load_model(MODEL_PATH)
+    model = Int8Classifier(MODEL_PATH)
     cap = cv2.VideoCapture(CAMERA_INDEX)
     cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)   # 0.25 = manual mode on most Windows webcams
     if not cap.isOpened():
@@ -126,7 +155,7 @@ def main():
                            cv2.resize(crop, (140, 140),
                                       interpolation=cv2.INTER_NEAREST))
 
-                probs = model.predict(model_input, verbose=0)[0]
+                probs = model.predict(model_input)[0]
                 idx = int(np.argmax(probs))
                 conf = float(probs[idx])
                 if conf >= CONFIDENCE_THRESHOLD and idx != 9:

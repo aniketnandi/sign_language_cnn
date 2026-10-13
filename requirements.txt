@@ -8,3 +8,4 @@ pandas
 tf2onnx
 onnx
 onnxruntime
+ai-edge-litert
