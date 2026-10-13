@@ -6,8 +6,9 @@ __pycache__/
 # Dataset (download from Kaggle, see README)
 Sign Language MNIST/
 
-# MediaPipe hand model (download link in README)
+# Downloaded or generated on first run of landmark_asl.py
 hand_landmarker.task
+landmark_model.joblib
 
 # OS
 .DS_Store

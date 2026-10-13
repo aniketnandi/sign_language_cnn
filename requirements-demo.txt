@@ -1,4 +1,9 @@
-# Minimal dependencies for realtime_demo.py (no TensorFlow needed)
+# Minimal dependencies for both live demos (no TensorFlow needed)
+# realtime_demo.py: OpenCV + int8 TFLite runtime
+# landmark_asl.py:  OpenCV + MediaPipe + scikit-learn
 numpy
-opencv-python<5
+opencv-contrib-python<5
 ai-edge-litert
+mediapipe
+scikit-learn
+joblib

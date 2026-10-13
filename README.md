@@ -12,16 +12,18 @@ A convolutional neural network built in TensorFlow/Keras that classifies static 
 
 ## Quick start
 
-**Try the live webcam demo** (needs Python 3.10+ and a webcam; no dataset or TensorFlow required):
+Needs Python 3.10+ and a webcam. No dataset, GPU or TensorFlow required.
 
 ```bash
 git clone https://github.com/aniketnandi/sign_language_cnn.git
 cd sign_language_cnn
 pip install -r requirements-demo.txt
-python realtime_demo.py
+python landmark_asl.py run
 ```
 
-Keep your hand out of the green box for ~2 seconds while it learns the background, then sign a letter inside it. Press `q` to quit. Live predictions from this pixel CNN are unreliable: webcam frames look different from the 28×28 training images. [Live Recognition with Hand Landmarks](#live-recognition-with-hand-landmarks) explains why, and describes the landmark-based pipeline that fixes it.
+This is the landmark-based recognizer, the one that works best on live video. On first run it downloads MediaPipe's hand model (~8 MB) and trains the classifier from the included 5,673 recorded samples, which takes a few seconds. Then sign a letter at the camera. Press `Esc` to quit. The samples come from one person and one webcam, so expect some letters to be less stable with a different hand or lighting.
+
+To compare, `python realtime_demo.py` runs the pixel CNN. Keep your hand out of the green box for ~2 seconds while it learns the background, then sign inside it, and press `q` to quit. Its live predictions are unreliable because webcam frames look different from the 28×28 training images. [Live Recognition with Hand Landmarks](#live-recognition-with-hand-landmarks) explains why.
 
 **Run the training notebook in your browser:** click **Open in Colab** above, then *Runtime → Run all*. The dataset downloads automatically and training takes a few minutes.
 
@@ -33,10 +35,11 @@ Keep your hand out of the green box for ~2 seconds while it learns the backgroun
 | `sign_language_cnn.h5` | Trained Keras model |
 | `realtime_demo.py` | Live webcam recognition with the int8 CNN |
 | `landmark_asl.py` | Live recognition from MediaPipe hand landmarks (collect, train, run) |
+| `landmarks.csv` | 5,673 recorded hand-landmark samples (26 letters) used to train the landmark classifier |
 | `export_models.py` | Converts the CNN to TFLite and ONNX, in float32 and int8 |
 | `benchmark.py` | Size, accuracy and latency comparison of all model formats |
 | `models/` | The exported TFLite and ONNX models |
-| `requirements-demo.txt` | Minimal dependencies for the webcam demo |
+| `requirements-demo.txt` | Minimal dependencies for both live demos |
 | `requirements.txt` | Everything: notebook, both demos, export and benchmark |
 | `images/` | Figures used in this README |
 
@@ -123,7 +126,7 @@ and classifies it.
 Classification uses the int8 TFLite export (`models/sign_language_cnn_int8.tflite`, see [Model Export](#model-export-int8-tflite-and-onnx)), which takes ~0.05 ms per frame. The earlier Keras version spent ~60 ms per frame in `model.predict` and ran at ~17 FPS. Inference runs on `ai-edge-litert` if it is installed, and on TensorFlow's bundled interpreter if not.
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements-demo.txt
 python realtime_demo.py
 ```
 Keep your hand out of the green box for ~2 seconds while it learns the
@@ -144,7 +147,7 @@ The pixel-based CNN scores 98.7% on the Sign MNIST test set, but almost 0% on li
 `landmark_asl.py` replaces pixels with hand geometry:
 1. **MediaPipe Hands** finds 21 hand-joint landmarks in each frame, regardless of background
 2. Landmarks are normalized to the wrist and scaled by hand size, which makes them position- and scale-invariant (42 features)
-3. A **Random Forest** trained on 5,600+ self-collected samples across all 26 letters classifies the handshape
+3. A **Random Forest** trained on 5,673 self-collected samples across all 26 letters (included as `landmarks.csv`) classifies the handshape
 4. Predictions are smoothed with a majority vote over recent frames
 
 ### Results
@@ -154,15 +157,18 @@ The pixel-based CNN scores 98.7% on the Sign MNIST test set, but almost 0% on li
 - Held-out accuracy on recorded samples is 100%, but this is inflated because consecutive frames are nearly identical. Live testing is the meaningful metric.
 
 ### Run it
-Download the MediaPipe hand model into this folder:
-[hand_landmarker.task](https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task)
-
 ```bash
-pip install -r requirements.txt
-python landmark_asl.py collect   # record samples: press a letter key to record, SPACE to stop, ESC to save
-python landmark_asl.py train     # train and evaluate the classifier
+pip install -r requirements-demo.txt
 python landmark_asl.py run       # live recognition
 ```
+The MediaPipe hand model (`hand_landmarker.task`, ~8 MB) downloads automatically the first time. If no trained classifier exists yet, `run` trains one from `landmarks.csv` first, which takes a few seconds.
+
+To add your own samples and retrain:
+```bash
+python landmark_asl.py collect   # press a letter key to record, SPACE to stop, ESC to save
+python landmark_asl.py train     # retrain and evaluate the classifier
+```
+`collect` appends to `landmarks.csv`, so new samples are added to the included ones.
 
 ## Model Export: int8 TFLite and ONNX
 
