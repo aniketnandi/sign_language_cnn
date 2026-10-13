@@ -123,6 +123,43 @@ python landmark_asl.py train     # train and evaluate the classifier
 python landmark_asl.py run       # live recognition
 ```
 
+## Model Export: int8 TFLite and ONNX
+
+`export_models.py` converts `sign_language_cnn.h5` into four deployable models in `models/`:
+
+| File | Format | Quantization |
+|---|---|---|
+| `sign_language_cnn_fp32.tflite` | TFLite | none (float32) |
+| `sign_language_cnn_int8.tflite` | TFLite | full-integer int8: weights, activations, input and output |
+| `sign_language_cnn_fp32.onnx` | ONNX (opset 17) | none (float32) |
+| `sign_language_cnn_int8.onnx` | ONNX (opset 17) | static int8, QDQ format, per-channel weights |
+
+The int8 models are calibrated on 500 random **training** images, so the test set is never seen during quantization. The int8 TFLite model takes and returns int8 tensors. Use the scale and zero point from `get_input_details()` / `get_output_details()` to convert (`benchmark.py` shows how).
+
+```bash
+pip install -r requirements.txt
+python export_models.py --data-dir "Sign Language MNIST"
+python benchmark.py --data-dir "Sign Language MNIST"
+```
+
+### Before and after
+
+Measured on the full 7,172-image test set. Latency is for one image (batch 1) on one CPU thread, the same work the webcam demo does each frame. Median over 1,000 runs (100 for `model.predict`) on an Intel Xeon @ 2.8 GHz.
+
+| Model | Size | Test accuracy | Agrees with Keras | Median latency | p95 latency |
+|---|---|---|---|---|---|
+| Keras `.h5`, `model.predict` (as in `realtime_demo.py`) | 2,700 KB | 98.72% | – | 60.6 ms | 76.5 ms |
+| Keras `.h5`, `tf.function` call | 2,700 KB | 98.72% | – | 0.67 ms | 1.07 ms |
+| TFLite fp32 | 891 KB | 98.72% | 100.00% | 0.078 ms | 0.12 ms |
+| **TFLite int8** | **233 KB** | **98.54%** | **99.76%** | **0.055 ms** | **0.11 ms** |
+| ONNX fp32 | 890 KB | 98.72% | 100.00% | 0.084 ms | 0.15 ms |
+| **ONNX int8** | **240 KB** | **98.54%** | **99.76%** | **0.087 ms** | **0.14 ms** |
+
+What the numbers show:
+- **Size:** int8 cuts the model to about **3.8×** smaller than float32 (891 KB → 233 KB) and **11.6×** smaller than the `.h5`. The `.h5` is bigger than the weights alone because it also stores Adam optimizer state.
+- **Accuracy:** int8 costs **0.18 points** (98.72% → 98.54%). It changes the predicted letter on 17 of 7,172 test images (0.24%). The float32 exports match Keras exactly.
+- **Speed:** most of the speedup comes from leaving Keras, not from int8. `model.predict` spends ~60 ms per call on setup, so any TFLite or ONNX export is **700–1,100× faster per frame** than the current demo. Compared with a direct Keras call, TFLite int8 is ~12× faster. Against float32 TFLite, int8 is ~1.4× faster. ONNX Runtime int8 runs at about the same speed as ONNX fp32: at 227K parameters the per-call overhead outweighs the cheaper int8 math on x86. The int8 ONNX model is still the one to ship for its size, and it should gain more on ARM or VNNI-capable hardware.
+
 ## Possible improvements
 - Sequence model (LSTM or temporal CNN) over landmark sequences to properly handle J and Z
 - More training data from multiple people and lighting conditions to improve robustness

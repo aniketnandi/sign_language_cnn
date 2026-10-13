@@ -4,3 +4,7 @@ opencv-python<5
 mediapipe
 scikit-learn
 joblib
+pandas
+tf2onnx
+onnx
+onnxruntime
