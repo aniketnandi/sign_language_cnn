@@ -5,6 +5,8 @@ mediapipe
 scikit-learn
 joblib
 pandas
+matplotlib
+seaborn
 tf2onnx
 onnx
 onnxruntime

@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Dataset (download from Kaggle, see README)
+Sign Language MNIST/
+
+# MediaPipe hand model (download link in README)
+hand_landmarker.task
+
+# OS
+.DS_Store
