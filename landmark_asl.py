@@ -14,7 +14,7 @@ Three modes:
   python landmark_asl.py run       # live recognition with FPS
 
 Setup (one time):
-  pip install mediapipe scikit-learn joblib "opencv-python<5"
+  pip install -r requirements-demo.txt
   The MediaPipe hand model (hand_landmarker.task, ~8 MB) downloads
   automatically on first use. If no trained classifier exists yet, `run`
   trains one from landmarks.csv first.
@@ -161,7 +161,7 @@ def train():
     rows = list(csv.reader(open(DATA_CSV)))[1:]
     y = np.array([r[0] for r in rows])
     X = np.array([[float(v) for v in r[1:]] for r in rows])
-    print(f"{len(X)} samples, {len(set(y))} letters: {sorted(set(y))}")
+    print(f"{len(X)} samples, {len(set(y))} letters: {' '.join(sorted(set(y)))}")
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y)
