@@ -185,3 +185,7 @@ What the numbers show:
 - Sequence model (LSTM or temporal CNN) over landmark sequences to properly handle J and Z
 - More training data from multiple people and lighting conditions to improve robustness
 - PyTorch port, and C++ deployment of the ONNX export via OpenCV DNN (in progress)
+
+## License
+
+The code in this repository is released under the [MIT License](LICENSE). The Sign Language MNIST dataset is not included and is distributed separately on Kaggle under its own terms.
