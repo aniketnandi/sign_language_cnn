@@ -15,8 +15,9 @@ Three modes:
 
 Setup (one time):
   pip install mediapipe scikit-learn joblib "opencv-python<5"
-  Download the hand model next to this script:
-  https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task
+  The MediaPipe hand model (hand_landmarker.task, ~8 MB) downloads
+  automatically on first use. If no trained classifier exists yet, `run`
+  trains one from landmarks.csv first.
 
 Collect controls:
   press a letter key (a-z)  -> start recording samples for that letter
@@ -37,6 +38,8 @@ from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision
 
 MODEL_TASK = "hand_landmarker.task"
+MODEL_TASK_URL = ("https://storage.googleapis.com/mediapipe-models/hand_landmarker/"
+                  "hand_landmarker/float16/1/hand_landmarker.task")
 DATA_CSV = "landmarks.csv"
 CLASSIFIER = "landmark_model.joblib"
 SMOOTHING_WINDOW = 8
@@ -48,9 +51,23 @@ CONNECTIONS = [(0, 1), (1, 2), (2, 3), (3, 4), (0, 5), (5, 6), (6, 7), (7, 8),
                (15, 16), (13, 17), (17, 18), (18, 19), (19, 20), (0, 17)]
 
 
+def ensure_task_model():
+    """Download MediaPipe's hand landmark model on first use."""
+    if os.path.exists(MODEL_TASK):
+        return
+    import urllib.request
+    print(f"Downloading {MODEL_TASK} (~8 MB)...")
+    try:
+        urllib.request.urlretrieve(MODEL_TASK_URL, MODEL_TASK + ".part")
+    except OSError as e:
+        sys.exit(f"Could not download {MODEL_TASK} ({e}).\n"
+                 f"Download it manually from {MODEL_TASK_URL}\n"
+                 f"and place it next to this script.")
+    os.replace(MODEL_TASK + ".part", MODEL_TASK)
+
+
 def create_detector():
-    if not os.path.exists(MODEL_TASK):
-        sys.exit(f"Missing {MODEL_TASK}. Download it first (see the top of this file).")
+    ensure_task_model()
     options = vision.HandLandmarkerOptions(
         base_options=mp_python.BaseOptions(model_asset_path=MODEL_TASK),
         running_mode=vision.RunningMode.VIDEO,
@@ -159,6 +176,12 @@ def train():
 
 def run():
     import joblib
+    if not os.path.exists(CLASSIFIER):
+        if not os.path.exists(DATA_CSV):
+            sys.exit(f"No classifier ({CLASSIFIER}) or samples ({DATA_CSV}) found.\n"
+                     f"Record samples with 'collect', then run 'train'.")
+        print(f"{CLASSIFIER} not found, training it from {DATA_CSV} first.")
+        train()
     clf = joblib.load(CLASSIFIER)
     detector, cap, start = create_detector(), open_camera(), time.time()
     recent = deque(maxlen=SMOOTHING_WINDOW)

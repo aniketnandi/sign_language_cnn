@@ -154,8 +154,7 @@ The pixel-based CNN scores 98.7% on the Sign MNIST test set, but almost 0% on li
 - Held-out accuracy on recorded samples is 100%, but this is inflated because consecutive frames are nearly identical. Live testing is the meaningful metric.
 
 ### Run it
-Download the MediaPipe hand model into this folder:
-[hand_landmarker.task](https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task)
+The MediaPipe hand model (`hand_landmarker.task`, ~8 MB) downloads automatically the first time. If no trained classifier exists yet, `run` trains one from `landmarks.csv` first, which takes a few seconds.
 
 ```bash
 pip install -r requirements.txt
