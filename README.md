@@ -184,7 +184,7 @@ What the numbers show:
 ## Possible improvements
 - Sequence model (LSTM or temporal CNN) over landmark sequences to properly handle J and Z
 - More training data from multiple people and lighting conditions to improve robustness
-- PyTorch port, and C++ deployment of the ONNX export via OpenCV DNN (in progress)
+- PyTorch port, and C++ deployment of the ONNX export via OpenCV DNN
 
 ## License
 
