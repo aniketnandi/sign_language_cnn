@@ -1,5 +1,7 @@
 # Sign Language Recognition with a CNN
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/aniketnandi/sign_language_cnn/blob/main/sign_language_cnn.ipynb)
+
 A convolutional neural network built in TensorFlow/Keras that classifies static American Sign Language (ASL) hand signs from grayscale images. It reaches **98.72% accuracy** on a held-out test set of 7,172 images.
 
 **Highlights**
@@ -8,7 +10,22 @@ A convolutional neural network built in TensorFlow/Keras that classifies static 
 - **Failure analysis and a fix:** diagnosed why the pixel model failed on live video (domain shift), then built a second pipeline on MediaPipe hand landmarks that recognizes all 26 letters live at ~30 FPS
 - **Deployment:** int8-quantized TFLite and ONNX exports that are **3.8× smaller** with a 0.18-point accuracy cost, and run **700–1,100× faster per frame** than the original Keras inference
 
-### Repository layout
+## Quick start
+
+**Try the live webcam demo** (needs Python 3.10+ and a webcam; no dataset or TensorFlow required):
+
+```bash
+git clone https://github.com/aniketnandi/sign_language_cnn.git
+cd sign_language_cnn
+pip install -r requirements-demo.txt
+python realtime_demo.py
+```
+
+Keep your hand out of the green box for ~2 seconds while it learns the background, then sign a letter inside it. Press `q` to quit. Live predictions from this pixel CNN are unreliable: webcam frames look different from the 28×28 training images. [Live Recognition with Hand Landmarks](#live-recognition-with-hand-landmarks) explains why, and describes the landmark-based pipeline that fixes it.
+
+**Run the training notebook in your browser:** click **Open in Colab** above, then *Runtime → Run all*. The dataset downloads automatically and training takes a few minutes.
+
+## Repository layout
 
 | Path | What it is |
 |---|---|
@@ -19,6 +36,8 @@ A convolutional neural network built in TensorFlow/Keras that classifies static 
 | `export_models.py` | Converts the CNN to TFLite and ONNX, in float32 and int8 |
 | `benchmark.py` | Size, accuracy and latency comparison of all model formats |
 | `models/` | The exported TFLite and ONNX models |
+| `requirements-demo.txt` | Minimal dependencies for the webcam demo |
+| `requirements.txt` | Everything: notebook, both demos, export and benchmark |
 | `images/` | Figures used in this README |
 
 ![Sample images](images/sample_images.png)
@@ -82,14 +101,15 @@ Validation accuracy rose from 83.7% after the first epoch to 99.95% by the tenth
 
 ![Training curves](images/training_curves.png)
 
-## Getting started
+## Running the notebook
 
-1. Download `sign_mnist_train.csv` and `sign_mnist_test.csv` from the Kaggle link above and place them in a `Sign Language MNIST/` folder.
-2. Install the dependencies:
+The quickest way to run the notebook is [in Colab](https://colab.research.google.com/github/aniketnandi/sign_language_cnn/blob/main/sign_language_cnn.ipynb). To run it locally:
+
+1. Install the dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-3. Open `sign_language_cnn.ipynb` from the same folder that contains `Sign Language MNIST/`, and run all cells.
+2. Open `sign_language_cnn.ipynb` and run all cells. The notebook downloads the dataset with `kagglehub` the first time. To use a copy you already have, place `sign_mnist_train.csv` and `sign_mnist_test.csv` in a `Sign Language MNIST/` folder next to the notebook.
 
 The trained model is saved as `sign_language_cnn.h5`.
 

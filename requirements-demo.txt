@@ -1,0 +1,4 @@
+# Minimal dependencies for realtime_demo.py (no TensorFlow needed)
+numpy
+opencv-python<5
+ai-edge-litert
